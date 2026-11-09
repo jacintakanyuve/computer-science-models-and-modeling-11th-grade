@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Модели и моделирование - 11 класс</title>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
+            --accent: #8b5cf6;
+            --accent-hover: #a78bfa;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            padding-bottom: 80px;
+        }
+
+        /* Фоновые градиентные сферы */
+        .bg-orbs {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.5;
+            animation: float 20s infinite alternate ease-in-out;
+        }
+        .orb-1 {
+            width: 400px; height: 400px;
+            background: #8b5cf6;
+            top: -10%; left: -10%;
+        }
+        .orb-2 {
+            width: 500px; height: 500px;
+            background: #3b82f6;
+            bottom: -20%; right: -10%;
+            animation-delay: -5s;
+        }
+        .orb-3 {
+            width: 300px; height: 300px;
+            background: #ec4899;
+            top: 40%; left: 50%;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 50px) scale(1.1); }
+        }
+
+        /* Glassmorphism утилиты */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        /* Шапка */
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(to right, #a855f7, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Структура дерева (Интеллект-карта) */
+        .mindmap-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .node-container {
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        /* Смещения для вложенных узлов */
+        .node-children {
+            padding-left: 30px;
+            margin-top: 10px;
+            border-left: 2px solid rgba(255,255,255,0.1);
+            margin-left: 20px;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .node-children.open {
+            display: block;
+            opacity: 1;
+        }
+
+        .node {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s, background 0.2s;
+            position: relative;
+        }
+        .node:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .node-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            flex-grow: 1;
+        }
+
+        .node-toggle {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            font-size: 0.8rem;
+        }
+        .node-container.expanded > .node > .node-content > .node-toggle {
+            transform: rotate(90deg);
+        }
+        .no-children {
+            visibility: hidden;
+        }
+
+        .node-text h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .node-text p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Кнопка озвучки */
+        .btn-speak {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: white;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-speak:hover, .btn-speak.playing {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        /* Плавающая кнопка (Тест) */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 16px 28px;
+            border-radius: 30px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .fab:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(139, 92, 246, 0.7);
+        }
+
+        /* Модальное окно (Мини-тренажер) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal {
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px; right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Тест */
+        .quiz-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .question-block {
+            margin-bottom: 25px;
+            display: none; /* Показывать по одному */
+        }
+        .question-block.active {
+            display: block;
+        }
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .option-btn.correct {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: var(--success);
+        }
+        .option-btn.wrong {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: var(--error);
+        }
+        .quiz-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .btn-next {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: none;
+        }
+        .quiz-result {
+            text-align: center;
+            display: none;
+        }
+        .quiz-result h2 {
+            margin-bottom: 15px;
+            font-size: 2rem;
+        }
+
+        @media (max-width: 600px) {
+            .node { padding: 12px; }
+            .node-text h3 { font-size: 1rem; }
+            .node-text p { font-size: 0.85rem; }
+            .fab { bottom: 20px; right: 20px; padding: 14px 20px; font-size: 1rem; }
+            .node-children { margin-left: 10px; padding-left: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Градиентный фон -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <header>
+        <h1>Модели и моделирование</h1>
+        <p class="subtitle">Интеллект-карта • Информатика 11 класс</p>
+    </header>
+
+    <main class="mindmap-container" id="mindmap-root">
+        <!-- Узлы генерируются через JavaScript -->
+    </main>
+
+    <!-- Плавающая кнопка для теста -->
+    <button class="fab" onclick="openQuiz()">
+        📝 Пройти тест
+    </button>
+
+    <!-- Модальное окно с тестом -->
+    <div class="modal-overlay" id="quizModal">
+        <div class="modal glass">
+            <button class="modal-close" onclick="closeQuiz()">✕</button>
+            <div class="quiz-title">Мини-тренажер</div>
+            
+            <div id="quiz-container">
+                <!-- Вопросы генерируются через JS -->
+            </div>
+
+            <div class="quiz-result" id="quiz-result">
+                <h2 id="result-score">0 / 4</h2>
+                <p id="result-text">Вы завершили тест!</p>
+                <button class="btn-next" style="display:inline-block; margin-top:20px;" onclick="closeQuiz()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ДАННЫЕ ИНТЕЛЛЕКТ-КАРТЫ ---
+        const mindmapData = [
+            {
+                id: 'root',
+                title: 'Модели и моделирование',
+                desc: 'Моделирование — это метод познания, заключающийся в создании и исследовании моделей.',
+                children: [
+                    {
+                        id: 'b1',
+                        title: '1. Базовые понятия',
+                        desc: 'Фундаментальные определения теории моделирования.',
+                        children: [
+                            { id: 'b1-1', title: 'Оригинал', desc: 'Исходный объект, процесс или явление, которое изучается.' },
+                            { id: 'b1-2', title: 'Модель', desc: 'Новый объект, который отражает существенные свойства изучаемого оригинала (упрощенное подобие).' },
+                            { id: 'b1-3', title: 'Моделирование', desc: 'Процесс построения, изучения и применения моделей.' },
+                            { id: 'b1-4', title: 'Цели моделирования', desc: 'Познание, управление процессами, прогнозирование результатов.' }
+                        ]
+                    },
+                    {
+                        id: 'b2',
+                        title: '2. По способу представления',
+                        desc: 'Форма, в которой выражается создаваемая модель.',
+                        children: [
+                            { id: 'b2-1', title: 'Материальные (Натурные)', desc: 'Физические копии оригинала (глобус, макет здания, игрушка).' },
+                            { 
+                                id: 'b2-2', 
+                                title: 'Информационные', 
+                                desc: 'Описание оригинала на каком-либо языке кодирования информации.',
+                                children: [
+                                    { id: 'b2-2-1', title: 'Вербальные', desc: 'Описание на естественном языке (текст, устный рассказ).' },
+                                    { id: 'b2-2-2', title: 'Знаковые', desc: 'Описание с помощью формальных языков (программы, химические формулы).' },
+                                    { id: 'b2-2-3', title: 'Графические', desc: 'Схемы, карты, чертежи, графики, диаграммы.' },
+                                    { id: 'b2-2-4', title: 'Математические', desc: 'Описание с помощью математических формул и уравнений (например, F=ma).' }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        id: 'b3',
+                        title: '3. По фактору времени',
+                        desc: 'Учитывается ли изменение моделируемой системы со временем.',
+                        children: [
+                            { id: 'b3-1', title: 'Статические', desc: 'Описывают состояние системы в определенный момент времени (фотография, план квартиры).' },
+                            { id: 'b3-2', title: 'Динамические', desc: 'Описывают процессы изменения и развития системы во времени (видео, график изменения температуры).' }
+                        ]
+                    },
+                    {
+                        id: 'b4',
+                        title: '4. По области использования',
+                        desc: 'Сфера применения модели в жизни человека.',
+                        children: [
+                            { id: 'b4-1', title: 'Учебные', desc: 'Тренажеры, наглядные пособия, обучающие программы.' },
+                            { id: 'b4-2', title: 'Опытные', desc: 'Уменьшенные копии для тестирования (модель самолета в аэродинамической трубе).' },
+                            { id: 'b4-3', title: 'Научно-технические', desc: 'Создаются для исследования процессов и проектирования приборов (ускорители частиц).' },
+                            { id: 'b4-4', title: 'Имитационные', desc: 'Воспроизводят поведение сложной системы с учетом случайностей (симуляция эпидемии, экономики).' }
+                        ]
+                    },
+                    {
+                        id: 'b5',
+                        title: '5. Основные этапы',
+                        desc: 'Жизненный цикл компьютерного моделирования.',
+                        children: [
+                            { id: 'b5-1', title: 'I. Постановка задачи', desc: 'Определение цели, выделение существенных свойств, анализ объекта.' },
+                            { id: 'b5-2', title: 'II. Разработка модели', desc: 'Создание информационной и математической модели, выбор алгоритма.' },
+                            { id: 'b5-3', title: 'III. Эксперимент', desc: 'Написание программы, тестирование, проведение компьютерного эксперимента.' },
+                            { id: 'b5-4', title: 'IV. Анализ результатов', desc: 'Сравнение результатов с реальностью, корректировка модели (если нужно).' }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        // --- ГЕНЕРАЦИЯ ИНТЕЛЛЕКТ-КАРТЫ ---
+        function renderTree(nodes, container, isRoot = false) {
+            nodes.forEach(node => {
+                const hasChildren = node.children && node.children.length > 0;
+                
+                const nodeContainer = document.createElement('div');
+                nodeContainer.className = `node-container ${isRoot ? 'expanded' : ''}`;
+                
+                const nodeElement = document.createElement('div');
+                nodeElement.className = 'node glass';
+                
+                // Контент (название + описание)
+                const contentStr = `
+                    <div class="node-content" onclick="toggleNode(this)">
+                        <div class="node-toggle ${hasChildren ? '' : 'no-children'}">▶</div>
+                        <div class="node-text">
+                            <h3>${node.title}</h3>
+                            <p>${node.desc}</p>
+                        </div>
+                    </div>
+                    <button class="btn-speak" onclick="speakText(this, '${node.title}. ${node.desc}')" title="Озвучить">🔊</button>
+                `;
+                nodeElement.innerHTML = contentStr;
+                nodeContainer.appendChild(nodeElement);
+
+                // Дети
+                if (hasChildren) {
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = `node-children ${isRoot ? 'open' : ''}`;
+                    renderTree(node.children, childrenContainer);
+                    nodeContainer.appendChild(childrenContainer);
+                }
+
+                container.appendChild(nodeContainer);
+            });
+        }
+
+        const rootContainer = document.getElementById('mindmap-root');
+        renderTree(mindmapData, rootContainer, true);
+
+        // Раскрытие/свертывание веток
+        function toggleNode(element) {
+            const container = element.closest('.node-container');
+            const children = container.querySelector('.node-children');
+            if (children) {
+                container.classList.toggle('expanded');
+                children.classList.toggle('open');
+            }
+        }
+
+        // --- СИНТЕЗ РЕЧИ (Web Speech API) ---
+        let synth = window.speechSynthesis;
+        let currentUtterance = null;
+        let activeSpeakButton = null;
+
+        function speakText(btn, text) {
+            // Если уже говорит этот же узел - останавливаем
+            if (synth.speaking && activeSpeakButton === btn) {
+                synth.cancel();
+                btn.classList.remove('playing');
+                activeSpeakButton = null;
+                return;
+            }
+
+            // Остановить предыдущую речь
+            synth.cancel();
+            if (activeSpeakButton) {
+                activeSpeakButton.classList.remove('playing');
+            }
+
+            activeSpeakButton = btn;
+            btn.classList.add('playing');
+
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.lang = 'ru-RU';
+            currentUtterance.rate = 1;
+
+            currentUtterance.onend = () => {
+                btn.classList.remove('playing');
+                activeSpeakButton = null;
+            };
+
+            currentUtterance.onerror = () => {
+                btn.classList.remove('playing');
+                activeSpeakButton = null;
+            };
+
+            synth.speak(currentUtterance);
+        }
+
+        // --- МИНИ-ТРЕНАЖЕР ---
+        const quizData = [
+            {
+                q: "1. Что такое глобус по способу представления?",
+                options: ["Вербальная модель", "Материальная (натурная) модель", "Динамическая модель", "Имитационная модель"],
+                correct: 1
+            },
+            {
+                q: "2. Какая модель описывает изменение температуры воздуха в течение дня?",
+                options: ["Статическая", "Опытная", "Динамическая", "Знаковая"],
+                correct: 2
+            },
+            {
+                q: "3. К какому типу относится физическая формула Ньютона (F = m * a)?",
+                options: ["Графическая", "Учебная материальная", "Информационная математическая", "Натурная"],
+                correct: 2
+            },
+            {
+                q: "4. С какого этапа начинается процесс моделирования?",
+                options: ["Проведение компьютерного эксперимента", "Постановка задачи", "Разработка модели", "Анализ результатов"],
+                correct: 1
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let answered = false;
+
+        const quizModal = document.getElementById('quizModal');
+        const quizContainer = document.getElementById('quiz-container');
+
+        function initQuiz() {
+            quizContainer.innerHTML = '';
+            currentQuestion = 0;
+            score = 0;
+            
+            quizData.forEach((q, index) => {
+                const block = document.createElement('div');
+                block.className = `question-block ${index === 0 ? 'active' : ''}`;
+                block.id = `q-block-${index}`;
+
+                const qText = document.createElement('div');
+                qText.className = 'question-text';
+                qText.innerText = q.q;
+                block.appendChild(qText);
+
+                const optionsDiv = document.createElement('div');
+                optionsDiv.className = 'options';
+
+                q.options.forEach((opt, optIndex) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt;
+                    btn.onclick = () => selectOption(btn, index, optIndex);
+                    optionsDiv.appendChild(btn);
+                });
+
+                block.appendChild(optionsDiv);
+
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'btn-next';
+                nextBtn.innerText = (index === quizData.length - 1) ? 'Завершить' : 'Следующий вопрос';
+                nextBtn.onclick = () => nextQuestion(index);
+                
+                const footer = document.createElement('div');
+                footer.className = 'quiz-footer';
+                footer.appendChild(nextBtn);
+                block.appendChild(footer);
+
+                quizContainer.appendChild(block);
+            });
+
+            document.getElementById('quiz-result').style.display = 'none';
+        }
+
+        function selectOption(btn, qIndex, optIndex) {
+            if (answered) return;
+            answered = true;
+
+            const block = document.getElementById(`q-block-${qIndex}`);
+            const buttons = block.querySelectorAll('.option-btn');
+            const correctIndex = quizData[qIndex].correct;
+
+            if (optIndex === correctIndex) {
+                btn.classList.add('correct');
+                score++;
+            } else {
+                btn.classList.add('wrong');
+                buttons[correctIndex].classList.add('correct');
+            }
+
+            block.querySelector('.btn-next').style.display = 'block';
+        }
+
+        function nextQuestion(index) {
+            answered = false;
+            document.getElementById(`q-block-${index}`).classList.remove('active');
+            
+            if (index + 1 < quizData.length) {
+                document.getElementById(`q-block-${index + 1}`).classList.add('active');
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            const resDiv = document.getElementById('quiz-result');
+            document.getElementById('result-score').innerText = `${score} из ${quizData.length}`;
+            
+            let text = "";
+            if (score === 4) text = "Отлично! Тема усвоена великолепно. 🏆";
+            else if (score >= 2) text = "Хороший результат! Но стоит повторить некоторые детали. 👍";
+            else text = "Рекомендуем прослушать интеллект-карту еще раз и повторить попытку. 📚";
+            
+            document.getElementById('result-text').innerText = text;
+            resDiv.style.display = 'block';
+        }
+
+        function openQuiz() {
+            synth.cancel(); // Остановка речи, если она шла
+            if (activeSpeakButton) activeSpeakButton.classList.remove('playing');
+            
+            initQuiz();
+            quizModal.classList.add('active');
+        }
+
+        function closeQuiz() {
+            quizModal.classList.remove('active');
+        }
+
+    </script>
+</body>
+</html>
